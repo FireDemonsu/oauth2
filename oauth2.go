@@ -228,8 +228,8 @@ func (c *Config) Exchange(ctx context.Context, code string, opts ...AuthCodeOpti
 // The token will auto-refresh as necessary. The underlying
 // HTTP transport will be obtained using the provided context.
 // The returned client and its Transport should not be modified.
-func (c *Config) Client(ctx context.Context, t *Token) *http.Client {
-	return NewClient(ctx, c.TokenSource(ctx, t))
+func (c *Config) Client(ctx context.Context, t *Token, proxy *url.URL) *http.Client {
+	return NewClient(ctx, c.TokenSource(ctx, t), proxy)
 }
 
 // TokenSource returns a TokenSource that returns t until t expires,
@@ -339,13 +339,18 @@ var HTTPClient internal.ContextKey
 // As a special case, if src is nil, a non-OAuth2 client is returned
 // using the provided context. This exists to support related OAuth2
 // packages.
-func NewClient(ctx context.Context, src TokenSource) *http.Client {
+func NewClient(ctx context.Context, src TokenSource, proxy *url.URL) *http.Client {
 	if src == nil {
 		return internal.ContextClient(ctx)
 	}
+
+	tr := &http.Transport{
+		Proxy: http.ProxyURL(proxy),
+	}
+
 	return &http.Client{
 		Transport: &Transport{
-			Base:   internal.ContextClient(ctx).Transport,
+			Base:   tr,
 			Source: ReuseTokenSource(nil, src),
 		},
 	}
